@@ -415,7 +415,23 @@ class OptimalCircuitDesignProblem():
         maxLengthCircuit = self.maxLengthCircuit
         model = self.model
         solver = self.solver
-        
+        numResistors = self.numResistors
+
+        if (numResistors == 0):
+            return []
+
+        if (numResistors == 1):
+            return [resistors[0]]
+
+        if (numResistors == 2):
+            seriesRes = abs(target - resistors[0] - resistors[1])
+            parallelRes = abs(target - (1 / ((1 / resistors[0]) + (1 / resistors[1]))))
+
+            if seriesRes < parallelRes:
+                return [resistors[0], resistors[1], -1]
+            else:
+                return [resistors[0], resistors[1], -2]
+
         self.create_variables()
         self.addInitialStackConstraint()
         self.addResistorSetConstraint()
@@ -465,18 +481,43 @@ class OptimalCircuitDesignProblem():
             # find a poor solution. Please contact me if you ever hit this
             # message.
             return [11111]
-        
 
-# FOR DEBUGGING:
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                            TESTING:
+
+ Creates instances of the solver and finds the optimal solution, 
+ printing information about the execution.
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''        
+def getResults(target: int, resistors: [float]):
+    solver = OptimalCircuitDesignProblem(target, resistors)
+    solution = solver.solve()
+    print("RESISTOR SET: " + str(resistors))
+    print("TARGET: " + str(target))
+    print("BEST: " + str(solution))
+    print("CLOSEST RESISTANCE: " + str(round(getEquivalentResistance(solution), 4)))
+    print("ERROR: " + str(round(100 * abs((target - getEquivalentResistance(solution)) / target), 4)) + "%")
+    return solution
+
+# TEST: Single resistor
+target = 400
+resistors = [200]
+assert getResults(target, resistors) == [200]
+print()
+
+# TEST: Two unique resistors, series best
+target = 400
+resistors = [200, 100]
+assert getResults(target, resistors) == [200, 100, -1]
+print()
+
+# TEST: Standard set of 5 unique resistors with nonobvious solution
 target = 158
 resistors = [100, 200, 300, 400, 500]
-#target = 400
-#resistors = [200, 100, 300]
-testGetEquivalentResistance()
-solver = OptimalCircuitDesignProblem(target, resistors)
-solution = solver.solve()
-print("RESISTOR SET: " + str(resistors))
-print("TARGET: " + str(target))
-print("BEST: " + str(solution))
-print("CLOSEST RESISTANCE: " + str(round(getEquivalentResistance(solution), 4)))
-print("ERROR: " + str(round(100 * abs((target - getEquivalentResistance(solution)) / target), 4)) + "%")
+getResults(target, resistors)
+print()
+
+
+
+
