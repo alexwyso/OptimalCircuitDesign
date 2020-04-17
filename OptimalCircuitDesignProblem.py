@@ -237,8 +237,7 @@ class OptimalCircuitDesignProblem():
         for i in range(maxLengthCircuit):
             for j in range(maxLengthCircuit):
                 if (i != j):
-                    model.Add(self.solution[i] != (
-                        self.solution[j])).OnlyEnforceIf(isResistor[i])           
+                    model.Add(self.solution[i] != self.solution[j]).OnlyEnforceIf(isResistor[i])           
 
     # ------------------ ADD VALID OPERATORS CONSTRAINT ------------------- #   
     # Adds constraints to ensure each operator is preceeded by the correct 
@@ -333,8 +332,7 @@ class OptimalCircuitDesignProblem():
         for circuitElement in range(1, maxLengthCircuit):
             for stackEntry in range (0, circuitElement + 1):
                 stack[index] = model.NewIntVar(
-                    0, 1000 * maxResistor * numResistors, (
-                        f'stack state {circuitElement} entry {stackEntry}'))
+                    0, 1000 * maxResistor * numResistors, f'stack state {circuitElement} entry {stackEntry}')
                 index = index + 1
 
         # EMPTY SPACES #
@@ -345,9 +343,8 @@ class OptimalCircuitDesignProblem():
             model.Add(stack[index] == 0).OnlyEnforceIf(isEmpty[circuitElement])
             index = index + 1
             for stackEntry in range (1, circuitElement + 1):
-                model.Add(stack[index] == (
-                    stack[index - circuitElement - (
-                        1)])).OnlyEnforceIf(isEmpty[circuitElement])
+                model.Add(
+                    stack[index] == stack[index - circuitElement - 1]).OnlyEnforceIf(isEmpty[circuitElement])
                 index = index + 1
 
         # RESISTORS #
@@ -357,11 +354,11 @@ class OptimalCircuitDesignProblem():
         index = 1
         for circuitElement in range(1, maxLengthCircuit):
             for stackEntry in range (0, circuitElement):
-                model.Add(stack[index] == stack[index - (
-                    circuitElement)]).OnlyEnforceIf(isResistor[circuitElement])
+                model.Add(
+                    stack[index] == stack[index - circuitElement]).OnlyEnforceIf(isResistor[circuitElement])
                 index = index + 1
-            model.Add(stack[index] == 1000 * solution[(
-                circuitElement)]).OnlyEnforceIf(isResistor[circuitElement])
+            model.Add(
+                stack[index] == 1000 * solution[circuitElement]).OnlyEnforceIf(isResistor[circuitElement])
             index = index + 1
 
         # SERIES OPERATORS #
@@ -377,12 +374,12 @@ class OptimalCircuitDesignProblem():
             model.Add(stack[index] == 0).OnlyEnforceIf(isSeries[circuitElement])
             index = index + 1
             for stackEntry in range (2, circuitElement):
-                model.Add(stack[index] == stack[index - circuitElement - (
-                    2)]).OnlyEnforceIf(isSeries[circuitElement])
+                model.Add(
+                    stack[index] == stack[index - circuitElement - 2]).OnlyEnforceIf(isSeries[circuitElement])
                 index = index + 1
-            model.Add(stack[index] == ((stack[index - circuitElement - (
-                2)] + stack[index - circuitElement - (
-                    1)]))).OnlyEnforceIf(isSeries[circuitElement])
+            model.Add(
+                stack[index] == ((
+                    stack[index - circuitElement - 2] + stack[index - circuitElement - 1]))).OnlyEnforceIf(isSeries[circuitElement])
             index = index + 1
 
         # PARALLEL OPERATORS #
@@ -391,40 +388,31 @@ class OptimalCircuitDesignProblem():
         # ab / (a+b) = 1 / ((1 / a) + (1 / b))
         index = 3
         for circuitElement in range(2, maxLengthCircuit):
-            model.Add(
-                stack[index] == 0).OnlyEnforceIf(isParallel[circuitElement])
+            model.Add(stack[index] == 0).OnlyEnforceIf(isParallel[circuitElement])
             index = index + 1
-            model.Add(
-                stack[index] == 0).OnlyEnforceIf(isParallel[circuitElement])
+            model.Add(stack[index] == 0).OnlyEnforceIf(isParallel[circuitElement])
             index = index + 1
             for stackEntry in range (2, circuitElement):
-                model.Add(stack[index] == stack[index - circuitElement - (
-                    2)]).OnlyEnforceIf(isParallel[circuitElement])
+                model.Add(
+                    stack[index] == stack[index - circuitElement - 2]).OnlyEnforceIf(isParallel[circuitElement])
                 index = index + 1
 
             sumAB = model.NewIntVar(1, numResistors * maxResistor * 1000, 'sum')
-            prodAB = model.NewIntVar(0, (maxResistor * numResistors * (
-                1000 * numResistors * maxResistor * 1000)), 'prod')
-            divAB = model.NewIntVar(0, (maxResistor * numResistors * (
-                1000 * numResistors * maxResistor * 1000)), 'div')
-            model.Add(sumAB == stack[index - circuitElement - 2] + (
-                stack[index - circuitElement - 1]))
-            model.AddMultiplicationEquality(
-                prodAB, [stack[index - circuitElement - 2], (
-                    stack[index - circuitElement - 1])])
+            prodAB = model.NewIntVar(0, (maxResistor * numResistors * 1000 * numResistors * maxResistor * 1000), 'prod')
+            divAB = model.NewIntVar(0, (maxResistor * numResistors * 1000 * numResistors * maxResistor * 1000), 'div')
+            model.Add(sumAB == stack[index - circuitElement - 2] + stack[index - circuitElement - 1])
+            model.AddMultiplicationEquality(prodAB, [stack[index - circuitElement - 2], stack[index - circuitElement - 1]])
             model.AddDivisionEquality(divAB, prodAB, sumAB)
-            model.Add(stack[index] == divAB).OnlyEnforceIf(
-                isParallel[circuitElement])
+            model.Add(stack[index] == divAB).OnlyEnforceIf(isParallel[circuitElement])
             index = index + 1
         
         # Minimize the difference between the target and equivalent resistance
         # of the circuit, which is now stored in the variable at the top of the
         # final stack
         self.stack = stack
-        error = model.NewIntVar(
-            -1 * maxResistor * numResistors, maxResistor * numResistors, 'err')
+        error = model.NewIntVar(-1 * maxResistor * numResistors, maxResistor * numResistors, 'error')
         model.Add(error == (1000 * target) - stack[stackLength - 1])
-        errorAbs = model.NewIntVar(0, 1000 * maxResistor * numResistors, 'abs')
+        errorAbs = model.NewIntVar(0, 1000 * maxResistor * numResistors, 'error')
         model.AddAbsEquality(errorAbs, error)
         self.model.Minimize(errorAbs)
         
@@ -441,15 +429,14 @@ class OptimalCircuitDesignProblem():
         solver = self.solver
         numResistors = self.numResistors
 
-        # Handle base cases for resistor set inputs of size 0, 1, or 2
+        # Handle base cases for resistor set inputs pf size 0, 1, or 2
         if (numResistors == 0):
             return []
         elif (numResistors == 1):
             return [resistors[0]]
         elif (numResistors == 2):
             seriesRes = abs(target - resistors[0] - resistors[1])
-            parallelRes = abs(target - (
-                1 / ((1 / resistors[0]) + (1 / resistors[1]))))
+            parallelRes = abs(target - (1 / ((1 / resistors[0]) + (1 / resistors[1]))))
             if seriesRes < parallelRes:
                 return [resistors[0], resistors[1], -1]
             else:
@@ -517,8 +504,8 @@ def getResults(target: int, resistors: [float]):
     print("BEST: " + str(solution))
     print("CLOSEST RESISTANCE: " + str(
         round(getEquivalentResistance(solution), 4)))
-    print("ERROR: " + str(round(100 * abs(
-        (target - getEquivalentResistance(solution)) / target), 4)) + "%")
+    print("ERROR: " + str(round(100 * abs((
+        target - getEquivalentResistance(solution)) / target), 4)) + "%")
     return solution
 
 # TEST: List notation calculations
