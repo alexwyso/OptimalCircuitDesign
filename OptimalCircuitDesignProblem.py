@@ -7,6 +7,7 @@
 from ortools.sat.python import cp_model
 import math
 import collections
+from timeit import default_timer as timer
 
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
                 EQUIVALENT RESISTANCE CALCULATION METHOD
@@ -95,7 +96,6 @@ def getEquivalentResistance(circuit: [float]) -> float:
     INPUT:  target      -> the desired equivalent resistance
             resistors   -> the set of available resistors
 
-
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 class OptimalCircuitDesignProblem():
 
@@ -122,7 +122,7 @@ class OptimalCircuitDesignProblem():
         maxLengthCircuit = self.maxLengthCircuit
         maxResistor = self.maxResistor
 
-        # Initialize the solution format to be size 'maxLengthResistor' with
+        # Initialize the solution format to be size 'maxLengthCircuit' with
         # entries ranging from -2 to 'maxResistor'
         solution = {}
         for i in range(maxLengthCircuit):
@@ -133,8 +133,8 @@ class OptimalCircuitDesignProblem():
         isEmpty = {}
         for i in range(maxLengthCircuit):
             isEmpty[i] = model.NewBoolVar(f'{i} is 0')
-            model.Add(self.solution[i] == 0).OnlyEnforceIf(isEmpty[i])
-            model.Add(self.solution[i] != 0).OnlyEnforceIf(isEmpty[i].Not())
+            model.Add(solution[i] == 0).OnlyEnforceIf(isEmpty[i])
+            model.Add(solution[i] != 0).OnlyEnforceIf(isEmpty[i].Not())
         self.isEmpty = isEmpty
         
         # Enforce that if an element of the solution is negatibe that it is 
@@ -142,8 +142,8 @@ class OptimalCircuitDesignProblem():
         isOp = {}
         for i in range(maxLengthCircuit):
             isOp[i] = model.NewBoolVar(f'{i} is an operator')
-            model.Add(self.solution[i] < 0).OnlyEnforceIf(isOp[i])
-            model.Add(self.solution[i] >= 0).OnlyEnforceIf(isOp[i].Not())
+            model.Add(solution[i] < 0).OnlyEnforceIf(isOp[i])
+            model.Add(solution[i] >= 0).OnlyEnforceIf(isOp[i].Not())
         self.isOp = isOp
 
         # Enforce that if an element of the solution is -1 that it is a
@@ -151,8 +151,8 @@ class OptimalCircuitDesignProblem():
         isSeries = {}
         for i in range(maxLengthCircuit):
             isSeries[i] = model.NewBoolVar(f'{i} is a series operator')
-            model.Add(self.solution[i] == -1).OnlyEnforceIf(isSeries[i])
-            model.Add(self.solution[i] != -1).OnlyEnforceIf(isSeries[i].Not())
+            model.Add(solution[i] == -1).OnlyEnforceIf(isSeries[i])
+            model.Add(solution[i] != -1).OnlyEnforceIf(isSeries[i].Not())
         self.isSeries = isSeries
 
         # Enforce that if an element of the solution is -1 that it is a
@@ -160,8 +160,8 @@ class OptimalCircuitDesignProblem():
         isParallel = {}
         for i in range(maxLengthCircuit):
             isParallel[i] = model.NewBoolVar(f'{i} is a parallel operator')
-            model.Add(self.solution[i] == -2).OnlyEnforceIf(isParallel[i])
-            model.Add(self.solution[i] != -2).OnlyEnforceIf(isParallel[i].Not())
+            model.Add(solution[i] == -2).OnlyEnforceIf(isParallel[i])
+            model.Add(solution[i] != -2).OnlyEnforceIf(isParallel[i].Not())
         self.isParallel = isParallel
 
         # Enforce that if an element of the solution is positive that it is
@@ -169,8 +169,8 @@ class OptimalCircuitDesignProblem():
         isResistor = {}
         for i in range(maxLengthCircuit):
             isResistor[i] = model.NewBoolVar(f'{i} is a resistor')
-            model.Add(self.solution[i] > 0).OnlyEnforceIf(isResistor[i])
-            model.Add(self.solution[i] <= 0).OnlyEnforceIf(isResistor[i].Not())
+            model.Add(solution[i] > 0).OnlyEnforceIf(isResistor[i])
+            model.Add(solution[i] <= 0).OnlyEnforceIf(isResistor[i].Not())
         self.isResistor = isResistor
 
     # ------------------- ADD INITIAL STACK CONSTRAINT -------------------- # 
@@ -179,18 +179,19 @@ class OptimalCircuitDesignProblem():
     def addInitialStackConstraint(self):
         model: cp_model.CpModel = self.model
         solution = self.solution
+        maxLengthCircuit = self.maxLengthCircuit
 
         # The first entry must be a resistor
-        if self.maxLengthCircuit >= 1:
+        if maxLengthCircuit >= 1:
             model.Add(solution[0] > 0)
         
         # The second entry can be a resistor or an empty space
-        if self.maxLengthCircuit >= 2:
+        if maxLengthCircuit >= 2:
             model.Add(solution[1] >= 0)
 
         # Elements less than -3 are not allowed, as they do not have any 
         # meaning in the encoding
-        for i in range(self.maxLengthCircuit):
+        for i in range(maxLengthCircuit):
             model.Add(solution[i] >= -2)
 
     # ------------------- ADD RESISTOR SET CONSTRAINT --------------------- #      
@@ -220,9 +221,10 @@ class OptimalCircuitDesignProblem():
         model: cp_model.CpModel = self.model
         maxLengthCircuit = self.maxLengthCircuit
         isEmpty = self.isEmpty
+        solution = self.solution
 
         for i in range(1, maxLengthCircuit):
-            model.Add(self.solution[i] == 0).OnlyEnforceIf(isEmpty[i - 1])
+            model.Add(solution[i] == 0).OnlyEnforceIf(isEmpty[i - 1])
         return
 
     # --------------------- ADD SINGLE USE CONSTRAINT --------------------- #   
@@ -232,13 +234,14 @@ class OptimalCircuitDesignProblem():
         model: cp_model.CpModel = self.model
         maxLengthCircuit = self.maxLengthCircuit
         resistors = self.resistors
+        solution = self.solution
 
         isMatch = {}
         for i in resistors:
             for j in range(maxLengthCircuit):
                 isMatch[i, j] = model.NewBoolVar(f'resistor {i} is at index {j} ')
-                model.Add(self.solution[j] == i).OnlyEnforceIf(isMatch[i, j])
-                model.Add(self.solution[j] != i).OnlyEnforceIf(isMatch[i, j].Not())
+                model.Add(solution[j] == i).OnlyEnforceIf(isMatch[i, j])
+                model.Add(solution[j] != i).OnlyEnforceIf(isMatch[i, j].Not())
 
         for i in resistors:
             model.Add(sum(isMatch[i, j] for j in range(maxLengthCircuit)) <= resistors.count(i))
@@ -412,13 +415,36 @@ class OptimalCircuitDesignProblem():
         
         # Minimize the difference between the target and equivalent resistance
         # of the circuit, which is now stored in the variable at the top of the
-        # final stack
+        # final stack. If there is a tie, choose the smaller solution
         self.stack = stack
+        numNonZeros = model.NewIntVar(0, maxLengthCircuit * 2, "numNonZeros")
+        model.Add(numNonZeros == sum(isEmpty[i].Not() for i in range(maxLengthCircuit)))
         error = model.NewIntVar(-1 * maxResistor * numResistors, maxResistor * numResistors, 'error')
         model.Add(error == (1000 * target) - stack[stackLength - 1])
-        errorAbs = model.NewIntVar(0, 1000 * maxResistor * numResistors, 'error')
+        errorAbs = model.NewIntVar(0, 1000 * maxResistor * numResistors * maxLengthCircuit, 'error')
         model.AddAbsEquality(errorAbs, error)
-        self.model.Minimize(errorAbs)
+        self.model.Minimize(maxLengthCircuit * errorAbs + numNonZeros)
+
+    # -------------------------- BREAK SYMMETRY --------------------------- #          
+    # Since series and parallel operators are both commutative, the run time 
+    # can be drastically cut down by eliminating topologically equivalent 
+    # circuits from the potential list of solutions.
+    def breakSymmetry(self):
+        model = self.model
+        solution = self.solution
+        maxLengthCircuit = self.maxLengthCircuit
+        isOp = self.isOp
+
+        # Adds constraints to force the second half of the solution to consist
+        # of only operators or empty spaces so that 
+        for i in range(maxLengthCircuit):
+            if i > maxLengthCircuit // 2:
+                model.Add(solution[i] <= 0)
+        
+        # Similarly, ensure that all of the resistors are at the front and
+        # once an operator is used, block other resistors from following
+        for i in range(1, maxLengthCircuit):
+            model.Add(solution[i] <= 0).OnlyEnforceIf(isOp[i - 1])        
         
     # ------------------------------- SOLVE ------------------------------- #        
     # Runs an instance of the solver, combining all the constraints and 
@@ -454,6 +480,7 @@ class OptimalCircuitDesignProblem():
         self.addSingleUseConstraint()
         self.addValidOperatorsConstraint()
         self.minimizeError()
+        self.breakSymmetry()
         solution = self.solution
 
         # Output the solution
@@ -501,6 +528,8 @@ def testGetEquivalentResistance():
 # --------------------------- GET RESULTS ------------------------- #            
 # Run an instance of the sovler and outputs useful information on the results
 def getResults(target: int, resistors: [float]):
+
+    t = timer()
     solver = OptimalCircuitDesignProblem(target, resistors)
     solution = solver.solve()
     print("RESISTOR SET: " + str(resistors))
@@ -510,6 +539,8 @@ def getResults(target: int, resistors: [float]):
         round(getEquivalentResistance(solution), 4)))
     print("ERROR: " + str(round(100 * abs((
         target - getEquivalentResistance(solution)) / target), 4)) + "%")
+    print(f'Solved in {timer() - t} sec.')
+    print()
     return solution
 
 # TEST: List notation calculations
@@ -519,23 +550,35 @@ testGetEquivalentResistance()
 target = 400
 resistors = [200]
 assert getResults(target, resistors) == [200]
-print()
 
 # TEST: Two unique resistors, series best
 target = 400
 resistors = [200, 100]
 assert getResults(target, resistors) == [200, 100, -1]
-print()
 
-# TEST: Two unique resistors, series best
+# TEST: Three of the same resistor
 target = 600
 resistors = [200, 200, 200]
-getResults(target, resistors)
-#assert getResults(target, resistors) == [200, 200, -1, 200, -1]
-print()
+getResults(target, resistors) == [200, 200, 200, -1, -1]
 
-# TEST: Standard set of 5 unique resistors with nonobvious solution
+# TEST: Standard set of 5 unique resistors with complex solution
 target = 158
 resistors = [100, 200, 300, 400, 500]
-getResults(target, resistors)
-print()
+getResults(target, resistors) == [400, 100, 200, 300, 500, -1, -2, -1, -2]
+
+# TEST: Standard set of 6 unique resistors with complex solution
+target = 439
+resistors = [100, 200, 300, 400, 500, 600]
+getResults(target, resistors) == [200, 300, 600, 500, 400, 100, -2, -1, -1, -2, -1]
+
+# TEST: Standard set of 7 unique resistors with simple solution
+target = 1000
+resistors = [100, 200, 300, 400, 500, 600, 700]
+getResults(target, resistors) == [600, 400, 500, 200, 300, 800, 100, -2, -1, -2, -1, -2, -1]
+
+# TEST: Complex set of 7 unique resistors with complex solution
+target = 999
+resistors = [4, 67, 840, 189, 223, 319, 21]
+getResults(target, resistors) == [600, 400, 500, 200, 300, 800, 100, -2, -1, -2, -1, -2, -1]
+
+print("DONE")
