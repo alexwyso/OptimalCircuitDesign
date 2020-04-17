@@ -143,7 +143,7 @@ class OptimalCircuitDesignProblem():
     def __init__(self, target: float, resistors: [float]):
 
         # The desired equivalent resistance
-        self.target = target
+        self.target = 1000 * target
 
         # Information on the set of resistors given
         self.resistors = resistors
@@ -320,10 +320,11 @@ class OptimalCircuitDesignProblem():
         isResistor = self.isResistor 
         isSeries = self.isSeries
         isParallel = self.isParallel
+        target = self.target
 
         stack = {}
-        stack[0] = model.NewIntVar(0, maxResistor * numResistors, f'stack state {0} entry {0}')
-        model.Add(stack[0] == solution[0])
+        stack[0] = model.NewIntVar(0, 1000 * maxResistor * numResistors, f'stack state {0} entry {0}')
+        model.Add(stack[0] == 1000 * solution[0])
 
         stackLength = sum([x for x in range(1, maxLengthCircuit + 1)])
         self.stackLength = stackLength
@@ -332,7 +333,7 @@ class OptimalCircuitDesignProblem():
         index = 1
         for circuitElement in range(1, maxLengthCircuit):
             for stackEntry in range (0, circuitElement + 1):
-                stack[index] = model.NewIntVar(0, maxResistor * numResistors, f'stack state {circuitElement} entry {stackEntry}')
+                stack[index] = model.NewIntVar(0, 1000 * maxResistor * numResistors, f'stack state {circuitElement} entry {stackEntry}')
                 index = index + 1
 
         # EMPTY SPACES #
@@ -354,7 +355,7 @@ class OptimalCircuitDesignProblem():
                 model.Add(stack[index] == stack[index - circuitElement]).OnlyEnforceIf(isResistor[circuitElement])
                 index = index + 1
 
-            model.Add(stack[index] == solution[circuitElement]).OnlyEnforceIf(isResistor[circuitElement])
+            model.Add(stack[index] == 1000 * solution[circuitElement]).OnlyEnforceIf(isResistor[circuitElement])
             index = index + 1
 
         # SERIES #
@@ -371,24 +372,13 @@ class OptimalCircuitDesignProblem():
                 model.Add(stack[index] == stack[index - circuitElement - 2]).OnlyEnforceIf(isSeries[circuitElement])
                 index = index + 1
 
-            model.Add(stack[index] == (stack[index - circuitElement - 2] + stack[index - circuitElement - 1])).OnlyEnforceIf(isSeries[circuitElement])
+            model.Add(stack[index] == ((stack[index - circuitElement - 2] + stack[index - circuitElement - 1]))).OnlyEnforceIf(isSeries[circuitElement])
             index = index + 1
-
-        '''
 
         # PARALLEL #
         # Adjust the indexes to match a parallel operator of arbitrary length
-        #index = 2
-        #for circuitElement in range(2, maxLengthCircuit):
-            #for stackEntry in range (0, circuitElement + solution[circuitElement] + 1):
 
-                #model.Add(stack[index] == stack[index - circuitElement]).OnlyEnforceIf(isParallel[circuitElement])
-                #index = index + 1
 
-            #model.Add(stack[index] == (stack[index - circuitElement] + stack[index - circuitElement - 1])).OnlyEnforceIf(isParallel[circuitElement])
-            #index = index + 1  
-
-        ''' 
         self.stack = stack
         error = model.NewIntVar(-1 * maxResistor * numResistors, maxResistor * numResistors, 'error')
         model.Add(error == target - stack[stackLength - 1])
@@ -443,10 +433,12 @@ class OptimalCircuitDesignProblem():
             for i in range(maxLengthCircuit):
                 output.append(solver.Value(solution[i]))
 
+            stackPrint = []
             for i in range(self.stackLength):
-                print(solver.Value(self.stack[i]))
+                stackPrint.append(solver.Value(self.stack[i]))
 
-            return output
+            print(stackPrint)
+            return [ x for x in output if x != 0 ]
         else:
             # This should theoretically never happen, as none of the constraints
             # should result in an unfeasible solution. At worst it would just
@@ -454,16 +446,14 @@ class OptimalCircuitDesignProblem():
             # message.
             return [11111]
         
-        
-        
 
 # FOR DEBUGGING:
-target = 605
-resistors = [100, 200, 300]
+target = 650
+resistors = [100, 200, 300, 400, 1000, 350, 250, 450]
 #testGetEquivalentResistance()
 solver = OptimalCircuitDesignProblem(target, resistors)
 solution = solver.solve()
 print("TARGET: " + str(target))
 print("BEST: " + str(solution))
-#print("CLOSEST RESISTANCE: " + str(getEquivalentResistance(solution))
-#print("ERROR: " + str(100 * abs((target - getEquivalentResistance(solution)) / target)) + "%")
+print("CLOSEST RESISTANCE: " + str(getEquivalentResistance(solution)))
+print("ERROR: " + str(100 * abs((target - getEquivalentResistance(solution)) / target)) + "%")
