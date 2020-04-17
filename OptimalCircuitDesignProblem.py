@@ -228,16 +228,20 @@ class OptimalCircuitDesignProblem():
     # --------------------- ADD SINGLE USE CONSTRAINT --------------------- #   
     # Adds constraints to ensure each resistor is not used in the solution
     # more times than it appears in the input set.
-    # NEED TO REDO 
     def addSingleUseConstraint(self):
         model: cp_model.CpModel = self.model
         maxLengthCircuit = self.maxLengthCircuit
-        isResistor = self.isResistor
+        resistors = self.resistors
 
-        for i in range(maxLengthCircuit):
+        isMatch = {}
+        for i in resistors:
             for j in range(maxLengthCircuit):
-                if (i != j):
-                    model.Add(self.solution[i] != self.solution[j]).OnlyEnforceIf(isResistor[i])           
+                isMatch[i, j] = model.NewBoolVar(f'resistor {i} is at index {j} ')
+                model.Add(self.solution[j] == i).OnlyEnforceIf(isMatch[i, j])
+                model.Add(self.solution[j] != i).OnlyEnforceIf(isMatch[i, j].Not())
+
+        for i in resistors:
+            model.Add(sum(isMatch[i, j] for j in range(maxLengthCircuit)) <= resistors.count(i))
 
     # ------------------ ADD VALID OPERATORS CONSTRAINT ------------------- #   
     # Adds constraints to ensure each operator is preceeded by the correct 
@@ -464,7 +468,7 @@ class OptimalCircuitDesignProblem():
             # should result in an unfeasible solution. At worst it would just
             # find a poor solution. Please contact me if you ever hit this
             # message.
-            return [404]
+            return []
 
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
                             TESTING:
@@ -521,6 +525,13 @@ print()
 target = 400
 resistors = [200, 100]
 assert getResults(target, resistors) == [200, 100, -1]
+print()
+
+# TEST: Two unique resistors, series best
+target = 600
+resistors = [200, 200, 200]
+getResults(target, resistors)
+#assert getResults(target, resistors) == [200, 200, -1, 200, -1]
 print()
 
 # TEST: Standard set of 5 unique resistors with nonobvious solution
