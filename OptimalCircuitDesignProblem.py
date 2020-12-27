@@ -11,11 +11,11 @@ from timeit import default_timer as timer
 
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
                 EQUIVALENT RESISTANCE CALCULATION METHOD
-                        LIST NOTATION VARIATION
+                        (LIST NOTATION VARIATION)
 
-    Takes a valid representation of a list representation of a circuit 
-    in Reverse Polish Notation and calculates its equivalent resistance
-    in O(n) where n is the number of resistors in the set.
+    Takes a valid list representation of a circuit in Reverse Polish Notation 
+    and calculates its equivalent resistance in O(n) where n is the number of 
+    resistors in the set.
 
     Reverse Polish Notation negates the need for parentheses by placing
     operators directly after their operands, drastically simplifying
@@ -31,25 +31,25 @@ from timeit import default_timer as timer
     [i] = Operand representing a resistor with resistance i
 
     *Each operator turns two operands into one, so the length of a 
-    solution is (2n - 1)
+    solution is bound by (2n - 1) when all resistors are used in the solution.
 
     **Operators will always be integers, but operands may be floats. Note
     that both of the operators in this case are commutative, so many resistors
-    in series or parallel can be represented by chains of operations
+    in series or parallel can be represented by chains of operations.
 
-    ***This implementation was only used for testing the accuracy of the 
-    solver as the functionality had to be redone in terms of linear 
+    ***This implementation was ONLY USED FOR TESTING the accuracy of the 
+    solver, as the functionality had to be done in terms of linear 
     constraints for the CP Model. It also provides a more clear understanding 
     of the notation used for circuit representation.
 
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 def getEquivalentResistance(circuit: [float]) -> float:
     
-    # Handle a base case of an empty circuit
+    # Handle base case of an empty circuit
     if len(circuit) == 0:
         return 0
 
-    # Handle a base case of a single resistor circuit
+    # Handle base case of a single resistor circuit
     if len(circuit) == 1:
         return circuit[0]
 
@@ -137,7 +137,7 @@ class OptimalCircuitDesignProblem():
             model.Add(solution[i] != 0).OnlyEnforceIf(isEmpty[i].Not())
         self.isEmpty = isEmpty
         
-        # Enforce that if an element of the solution is negatibe that it is 
+        # Enforce that if an element of the solution is negative that it is 
         # an operator
         isOp = {}
         for i in range(maxLengthCircuit):
@@ -155,7 +155,7 @@ class OptimalCircuitDesignProblem():
             model.Add(solution[i] != -1).OnlyEnforceIf(isSeries[i].Not())
         self.isSeries = isSeries
 
-        # Enforce that if an element of the solution is -1 that it is a
+        # Enforce that if an element of the solution is -2 that it is a
         # parallel operator
         isParallel = {}
         for i in range(maxLengthCircuit):
@@ -214,8 +214,8 @@ class OptimalCircuitDesignProblem():
             model.AddAllowedAssignments([solution[i]], resistorsListOfList)
 
     # ----------------------- ADD LENGTH CONSTRAINT ----------------------- #     
-    # Adds constraints so that a circuit representation of length n
-    # fills the first n indices of the solution with resistors/operators 
+    # Adds constraints so that a circuit representation of length x
+    # fills the first x indices of the solution with resistors/operators 
     # and forces the rest to be 0 for unused space.
     def addLengthConstraint(self):
         model: cp_model.CpModel = self.model
@@ -326,7 +326,7 @@ class OptimalCircuitDesignProblem():
         model.Add(stack[0] == 1000 * solution[0])
 
         # The max size of each stack grows by 1 with each index, so the 
-        # total lenght is calculated by summing the numbers from 1 to 
+        # total length is calculated by summing the numbers from 1 to 
         # maxLengthCircuit
         stackLength = sum([x for x in range(1, maxLengthCircuit + 1)])
         self.stackLength = stackLength
@@ -493,8 +493,7 @@ class OptimalCircuitDesignProblem():
         else:
             # This should theoretically never happen, as none of the constraints
             # should result in an unfeasible solution. At worst it would just
-            # find a poor solution. Please contact me if you ever hit this
-            # message.
+            # find a poor solution.
             return []
 
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -525,7 +524,7 @@ def testGetEquivalentResistance():
 
     return
 
-# --------------------------- GET RESULTS ------------------------- #            
+# --------------------------- TEST GET RESULTS ------------------------- #            
 # Run an instance of the sovler and outputs useful information on the results
 def getResults(target: int, resistors: [float]):
 
